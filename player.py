@@ -242,13 +242,43 @@ class player:
     # RYSOWANIE
     # =========================================================
 
-    def draw(self, screen):
+    def draw(self, screen, size=1.0):
+
+        if size <= 0:
+            return
+
+        # =========================================================
+        # AKTUALIZACJA ANIMACJI
+        # =========================================================
 
         self.update_animation()
 
-        # =========================
-        # ANIMACJA
-        # =========================
+        # =========================================================
+        # POWIERZCHNIA POSTACI
+        # =========================================================
+
+        base_width = 120
+        base_height = 190
+
+        character_surface = pygame.Surface(
+            (base_width, base_height),
+            pygame.SRCALPHA
+        )
+
+        center_x = base_width // 2
+        center_y = 85
+
+        # Zapamiętaj pozycję gracza
+        old_x = self.x
+        old_y = self.y
+
+        # Tymczasowa pozycja na powierzchni
+        self.x = center_x
+        self.y = center_y
+
+        # =========================================================
+        # ANIMACJA CHODZENIA
+        # =========================================================
 
         if self.walking:
 
@@ -265,12 +295,12 @@ class player:
             leg_offset = 0
             arm_offset = 0
 
-        # =========================
+        # =========================================================
         # NOGI
-        # =========================
+        # =========================================================
 
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (45, 50, 70),
             [
                 (self.x - 23, self.y + 42 + leg_offset),
@@ -281,7 +311,7 @@ class player:
         )
 
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (45, 50, 70),
             [
                 (self.x + 2, self.y + 42 - leg_offset),
@@ -291,12 +321,12 @@ class player:
             ]
         )
 
-        # =========================
+        # =========================================================
         # BUTY
-        # =========================
+        # =========================================================
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (30, 28, 25),
             (
                 self.x - 32,
@@ -307,7 +337,7 @@ class player:
         )
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (30, 28, 25),
             (
                 self.x - 2,
@@ -317,12 +347,12 @@ class player:
             )
         )
 
-        # =========================
+        # =========================================================
         # PLECAK
-        # =========================
+        # =========================================================
 
         pygame.draw.rect(
-            screen,
+            character_surface,
             (115, 70, 35),
             (
                 self.x - 38,
@@ -333,7 +363,7 @@ class player:
         )
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (135, 85, 40),
             (
                 self.x - 38,
@@ -343,12 +373,12 @@ class player:
             )
         )
 
-        # =========================
+        # =========================================================
         # TUŁÓW
-        # =========================
+        # =========================================================
 
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (55, 105, 200),
             [
                 (self.x - 30, self.y - 5),
@@ -361,7 +391,7 @@ class player:
         )
 
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (70, 120, 220),
             [
                 (self.x - 14, self.y),
@@ -371,12 +401,12 @@ class player:
             ]
         )
 
-        # =========================
+        # =========================================================
         # PAS
-        # =========================
+        # =========================================================
 
         pygame.draw.rect(
-            screen,
+            character_surface,
             (90, 55, 30),
             (
                 self.x - 29,
@@ -387,7 +417,7 @@ class player:
         )
 
         pygame.draw.rect(
-            screen,
+            character_surface,
             (220, 175, 55),
             (
                 self.x - 6,
@@ -397,12 +427,12 @@ class player:
             )
         )
 
-        # =========================
+        # =========================================================
         # RAMIONA
-        # =========================
+        # =========================================================
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (55, 105, 200),
             (
                 self.x - 30,
@@ -412,7 +442,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (55, 105, 200),
             (
                 self.x + 30,
@@ -422,7 +452,7 @@ class player:
         )
 
         pygame.draw.line(
-            screen,
+            character_surface,
             (55, 105, 200),
             (
                 self.x - 38,
@@ -436,7 +466,7 @@ class player:
         )
 
         pygame.draw.line(
-            screen,
+            character_surface,
             (55, 105, 200),
             (
                 self.x + 38,
@@ -449,12 +479,12 @@ class player:
             14
         )
 
-        # =========================
+        # =========================================================
         # DŁONIE
-        # =========================
+        # =========================================================
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (225, 175, 125),
             (
                 self.x - 43,
@@ -464,7 +494,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (225, 175, 125),
             (
                 self.x + 43,
@@ -473,12 +503,12 @@ class player:
             10
         )
 
-        # =========================
+        # =========================================================
         # SZYJA
-        # =========================
+        # =========================================================
 
         pygame.draw.rect(
-            screen,
+            character_surface,
             (220, 170, 120),
             (
                 self.x - 11,
@@ -488,12 +518,12 @@ class player:
             )
         )
 
-        # =========================
+        # =========================================================
         # USZY
-        # =========================
+        # =========================================================
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (205, 150, 105),
             (
                 self.x - 31,
@@ -503,7 +533,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (205, 150, 105),
             (
                 self.x + 31,
@@ -512,12 +542,12 @@ class player:
             10
         )
 
-        # =========================
+        # =========================================================
         # GŁOWA
-        # =========================
+        # =========================================================
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (225, 175, 125),
             (
                 self.x - 32,
@@ -527,12 +557,12 @@ class player:
             )
         )
 
-        # =========================
+        # =========================================================
         # WŁOSY
-        # =========================
+        # =========================================================
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (55, 32, 18),
             (
                 self.x - 35,
@@ -543,7 +573,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (55, 32, 18),
             (
                 self.x - 29,
@@ -553,7 +583,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (55, 32, 18),
             (
                 self.x + 29,
@@ -562,9 +592,8 @@ class player:
             13
         )
 
-        # Grzywka
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (55, 32, 18),
             [
                 (self.x - 31, self.y - 56),
@@ -578,12 +607,12 @@ class player:
             ]
         )
 
-        # =========================
+        # =========================================================
         # BRWI
-        # =========================
+        # =========================================================
 
         pygame.draw.line(
-            screen,
+            character_surface,
             (75, 40, 22),
             (
                 self.x - 22,
@@ -597,7 +626,7 @@ class player:
         )
 
         pygame.draw.line(
-            screen,
+            character_surface,
             (75, 40, 22),
             (
                 self.x + 7,
@@ -610,12 +639,12 @@ class player:
             4
         )
 
-        # =========================
+        # =========================================================
         # OCZY
-        # =========================
+        # =========================================================
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (245, 245, 235),
             (
                 self.x - 22,
@@ -626,7 +655,7 @@ class player:
         )
 
         pygame.draw.ellipse(
-            screen,
+            character_surface,
             (245, 245, 235),
             (
                 self.x + 6,
@@ -637,7 +666,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (35, 45, 55),
             (
                 self.x - 14,
@@ -647,7 +676,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (35, 45, 55),
             (
                 self.x + 14,
@@ -657,7 +686,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (255, 255, 255),
             (
                 self.x - 12,
@@ -667,7 +696,7 @@ class player:
         )
 
         pygame.draw.circle(
-            screen,
+            character_surface,
             (255, 255, 255),
             (
                 self.x + 16,
@@ -676,12 +705,12 @@ class player:
             2
         )
 
-        # =========================
+        # =========================================================
         # NOS
-        # =========================
+        # =========================================================
 
         pygame.draw.polygon(
-            screen,
+            character_surface,
             (195, 140, 95),
             [
                 (self.x, self.y - 37),
@@ -690,12 +719,12 @@ class player:
             ]
         )
 
-        # =========================
+        # =========================================================
         # USTA
-        # =========================
+        # =========================================================
 
         pygame.draw.arc(
-            screen,
+            character_surface,
             (110, 55, 45),
             (
                 self.x - 10,
@@ -708,10 +737,53 @@ class player:
             2
         )
 
+        # =========================================================
+        # KATANA
+        # =========================================================
+
         katana = swords.Katana()
+
         if katana.eqquiped:
             katana.draw(
-                screen,
+                character_surface,
                 self.x + 43,
                 self.y + 30 - arm_offset
             )
+
+        # =========================================================
+        # PRZYWRÓĆ POZYCJĘ GRACZA
+        # =========================================================
+
+        self.x = old_x
+        self.y = old_y
+
+        # =========================================================
+        # SKALOWANIE CAŁEJ POSTACI
+        # =========================================================
+
+        scaled_width = max(
+            1,
+            int(base_width * size)
+        )
+
+        scaled_height = max(
+            1,
+            int(base_height * size)
+        )
+
+        scaled_character = pygame.transform.smoothscale(
+            character_surface,
+            (scaled_width, scaled_height)
+        )
+
+        # =========================================================
+        # RYSOWANIE NA EKRANIE
+        # =========================================================
+
+        screen.blit(
+            scaled_character,
+            (
+                int(old_x - scaled_width / 2),
+                int(old_y - center_y * size)
+            )
+        )

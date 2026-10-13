@@ -9,11 +9,13 @@ except:
     install("pygame")
     import pygame
 import settings
+import save
 
 class Fruits:
-    def __init__(self, name, s1_energy_drain, s2_energy_drain, s3_energy_drain, s1_name, s2_name, s3_name, s1_dmg, s2_dmg, s3_dmg, s1_mas, s2_mas, s3_mas,  eqquiped):
+    def __init__(self, name, s1_energy_drain, s2_energy_drain, s3_energy_drain, s1_name, s2_name, s3_name, s1_dmg, s2_dmg, s3_dmg, s1_mas, s2_mas, s3_mas, eqquiped, rarity):
         self.name = name
         self.eqquiped = eqquiped
+        self.rarity = rarity
 
         self.s1_energy_drain = s1_energy_drain
         self.s2_energy_drain = s2_energy_drain
@@ -31,11 +33,20 @@ class Fruits:
         self.s2_mas = s2_mas
         self.s3_mas = s3_mas
 
+eqquiped_fruit = ""
 class Blade(Fruits):
+    data = save.load_game()
+    last_save = data["variables"]["last_save"]
+    if last_save not in data["saves"]:
+        last_save = "save1"
+    save_data = data["saves"][last_save]
+    eqquiped_fruit = save_data["current_fruit"]
+
     def __init__(self):
         super().__init__(
             name="Blade",
-            eqquiped=False,
+            eqquiped=eqquiped_fruit == "Blade",
+            rarity="Common",
             s1_energy_drain=10, #ZMIEŃ <
             s2_energy_drain=20,
             s3_energy_drain=30, #ZMIEŃ >
@@ -71,6 +82,9 @@ class Blade(Fruits):
         target.hp -= dmg
         if target.hp < target.max_hp:
             target.hp = target.max_hp
+
+    def draw_icon(self, screen):
+        pass
 
     def draw_s1_icon(self, screen):
         pass

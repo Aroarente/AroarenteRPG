@@ -16,9 +16,12 @@ import save
 import swords
 import guns
 import utilities
+import player
 import fruits
 import elementals
+
 katana = swords.Katana()
+Player = player.player()
 
 
 def format_number(n):
@@ -1823,6 +1826,118 @@ class UI:
 
         self.open_panel = None
 
+    def reset_game_ui_self(self):
+        data = save.load_game()
+        last_save = data["variables"]["last_save"]
+        if last_save not in data["saves"]:
+            last_save = "save1"
+        save_data = data["saves"][last_save]
+
+        self.money = save_data["money"]
+        self.fragments = save_data["fragments"]
+
+        self.exp = save_data["exp"]
+        self.max_exp = save_data["max_exp"]
+        self.lvl = save_data["lvl"]
+        self.prestige_lvl = save_data["prestige_lvl"]
+        self.to_add_points = 0
+
+        self.level_up_active = False
+        self.level_up_start = 0
+        self.level_up_level = 0
+        self.level_up_particles = []
+
+        self.health = save_data["health"]
+        self.max_health = save_data["max_health"]
+
+        self.energy = save_data["energy"]
+        self.max_energy = save_data["max_energy"]
+
+        self.stats_points_to_give = save_data["stats_points_to_give"]
+        self.health_and_def_stats = save_data["health_and_def_stats"]
+        self.dmg_and_forget_resistance_stats = save_data["dmg_and_forget_resistance_stats"]
+        self.energy_stats = save_data["energy_stats"]
+        self.combo_stats = save_data["combo_stats"]
+
+        self.elemental = save_data["elemental"]
+        self.name = save_data["character_name"]
+        self.difficulty = save_data["difficulty"]
+
+        self.current_place = save_data["current_world"]
+        self.places_unlocked = save_data["worlds_unlocked"]
+
+        self.place_position_x = save_data["current_map_on_x"]
+        self.place_position_y = save_data["current_map_on_y"]
+
+        self.map_position_x = save_data["current_location_x"]
+        self.map_position_y = save_data["current_location_y"]
+
+        self.fruit = save_data["current_fruit"]
+        self.fighting_style = save_data["current_fighting_style"]
+        self.gun = save_data["current_gun"]
+        self.sword = save_data["current_sword"]
+
+        # ==========================================
+        # USTAWIENIA PRZYCISKÓW
+        # ==========================================
+
+        BUTTON_SIZE = 140
+        MARGIN = 50
+
+        # ==========================================
+        # SETTINGS
+        # ==========================================
+
+        self.settings_button = SquareButton(
+            settings.WIDTH - BUTTON_SIZE - MARGIN,
+            MARGIN,
+            BUTTON_SIZE,
+            "⚙",
+            pygame.K_c
+        )
+
+        # ==========================================
+        # INVENTORY
+        # ==========================================
+
+        self.inventory_button = SquareButton(
+            settings.WIDTH - BUTTON_SIZE * 2 - MARGIN * 2,
+            MARGIN,
+            BUTTON_SIZE,
+            "🎒",
+            pygame.K_e
+        )
+
+        # ==========================================
+        # MAP
+        # ==========================================
+
+        self.map_button = SquareButton(
+            settings.WIDTH - BUTTON_SIZE - MARGIN,
+            BUTTON_SIZE + MARGIN * 2,
+            BUTTON_SIZE,
+            "🗺",
+            pygame.K_m
+        )
+
+        # ==========================================
+        # ▲ / ▼
+        # ==========================================
+
+        # Stan GUI. None oznacza, że stan gry nie został jeszcze ustawiony.
+        self.game_active = None
+        self.buttons_visible = False
+
+        # Przycisk TAB jest widoczny również podczas cutscenki.
+        self.buttons_toggle = SquareButton(
+            settings.WIDTH - BUTTON_SIZE - MARGIN,
+            MARGIN,
+            BUTTON_SIZE,
+            "🔒",
+            pygame.K_TAB
+        )
+
+        self.open_panel = None
 
     def set_game_active(self, active):
         """Włącza lub blokuje sterowanie GUI zależnie od stanu gry."""
@@ -2302,6 +2417,25 @@ class UI:
         # MYSZ
         # ==========================================
 
+        # Kółko myszy przewija dokładnie tę sekcję ekwipunku,
+        # nad którą znajduje się kursor.
+        if event.type == pygame.MOUSEWHEEL and self.open_panel == "inventory":
+            mouse_pos = pygame.mouse.get_pos()
+            section_viewports = getattr(self, "inventory_section_viewports", {})
+            section_max_scroll = getattr(self, "inventory_section_max_scroll", {})
+
+            for section_index, viewport in section_viewports.items():
+                if viewport.collidepoint(mouse_pos):
+                    if not hasattr(self, "inventory_scroll_offsets"):
+                        self.inventory_scroll_offsets = {}
+                    max_scroll = section_max_scroll.get(section_index, 0)
+                    current_scroll = self.inventory_scroll_offsets.get(section_index, 0)
+                    self.inventory_scroll_offsets[section_index] = max(
+                        0,
+                        min(max_scroll, current_scroll - event.y * 150)
+                    )
+                    return
+
         if event.type == pygame.MOUSEBUTTONDOWN:
 
             if event.button == 1:
@@ -2366,6 +2500,17 @@ class UI:
                         else "map"
                     )
 
+                mouse_x, mouse_y = event.pos
+
+                if self.open_panel == "inventory":
+                    for section_index, viewport in self.inventory_section_viewports.items():
+                        if viewport.collidepoint(mouse_x, mouse_y):
+                            # Kliknięto obszar tej sekcji ekwipunku
+                            print(f"Kliknięto sekcję: {section_index}")
+
+                            # Tutaj sprawdzimy, który konkretnie przedmiot
+                            # został kliknięty.
+                            break
 
     def draw(self, screen, game_game_state):
 
@@ -2925,7 +3070,6 @@ class UI:
             )
         )
 
-
     def draw_inventory(self, screen):
         data = save.load_game()
 
@@ -2942,21 +3086,2235 @@ class UI:
             self.give_exp_for_quest()
             save.save_game(data)
 
-        # ==========================================
-        # DELIKATNE PRZYCIEMNIENIE EKRANU
-        # ==========================================
+        # =====================================================
+        # INWENTARZ — BRĄZOWA SKÓRA PLECAKA FANTASY RPG
+        # =====================================================
 
-        dark_overlay = pygame.Surface(
-            (settings.WIDTH, settings.HEIGHT),
+        import pygame
+        import random
+        import math
+
+        screen_width = screen.get_width()
+        screen_height = screen.get_height()
+
+        # =====================================================
+        # 1. GŁÓWNE TŁO — BRĄZOWA SKÓRA
+        # =====================================================
+
+        screen.fill((91, 53, 30))
+
+        # Delikatny gradient skóry
+        leather_surface = pygame.Surface(
+            (screen_width, screen_height)
+        )
+
+        for i in range(screen_height):
+            progress = i / max(1, screen_height)
+
+            red = int(125 - progress * 35)
+            green = int(76 - progress * 28)
+            blue = int(43 - progress * 15)
+
+            pygame.draw.line(
+                leather_surface,
+                (red, green, blue),
+                (0, i),
+                (screen_width, i)
+            )
+
+        screen.blit(leather_surface, (0, 0))
+
+        # =====================================================
+        # 2. DELIKATNA FAKTURA SKÓRY
+        # =====================================================
+
+        texture_surface = pygame.Surface(
+            (screen_width, screen_height),
             pygame.SRCALPHA
         )
 
-        dark_overlay.fill((0, 0, 0, 240))
+        random.seed(42)
+
+        for _ in range(max(100, screen_width * screen_height // 1800)):
+            px = random.randint(0, screen_width - 1)
+            py = random.randint(0, screen_height - 1)
+
+            length = random.randint(2, 9)
+
+            if random.random() < 0.5:
+                color = (35, 18, 10, 35)
+            else:
+                color = (230, 165, 100, 22)
+
+            pygame.draw.line(
+                texture_surface,
+                color,
+                (px, py),
+                (min(screen_width - 1, px + length), py + 1),
+                1
+            )
+
+        screen.blit(texture_surface, (0, 0))
+
+        # =====================================================
+        # 3. CIEMNE KRAWĘDZIE PLECAKA
+        # =====================================================
+
+        edge_size = max(12, int(min(screen_width, screen_height) * 0.025))
+
+        # Górna krawędź
+        pygame.draw.rect(
+            screen,
+            (48, 27, 17),
+            (0, 0, screen_width, edge_size)
+        )
+
+        # Dolna krawędź
+        pygame.draw.rect(
+            screen,
+            (48, 27, 17),
+            (
+                0,
+                screen_height - edge_size,
+                screen_width,
+                edge_size
+            )
+        )
+
+        # Lewa krawędź
+        pygame.draw.rect(
+            screen,
+            (48, 27, 17),
+            (0, 0, edge_size, screen_height)
+        )
+
+        # Prawa krawędź
+        pygame.draw.rect(
+            screen,
+            (48, 27, 17),
+            (
+                screen_width - edge_size,
+                0,
+                edge_size,
+                screen_height
+            )
+        )
+
+        # =====================================================
+        # 4. PODWÓJNE OBRAMOWANIE
+        # =====================================================
+
+        margin = edge_size // 2
+
+        pygame.draw.rect(
+            screen,
+            (183, 125, 68),
+            (
+                margin,
+                margin,
+                screen_width - margin * 2,
+                screen_height - margin * 2
+            ),
+            width=4,
+            border_radius=12
+        )
+
+        pygame.draw.rect(
+            screen,
+            (65, 36, 22),
+            (
+                margin + 7,
+                margin + 7,
+                screen_width - (margin + 7) * 2,
+                screen_height - (margin + 7) * 2
+            ),
+            width=2,
+            border_radius=9
+        )
+
+        # =====================================================
+        # 5. PRZESZYCIA WZDŁUŻ KRAWĘDZI
+        # =====================================================
+
+        stitch_color = (220, 166, 104)
+        stitch_shadow = (45, 24, 14)
+
+        stitch_offset = edge_size + 10
+        stitch_spacing = 22
+
+        # Góra i dół
+        for px in range(stitch_offset, screen_width - stitch_offset, stitch_spacing):
+            for py in (stitch_offset, screen_height - stitch_offset):
+                pygame.draw.line(
+                    screen,
+                    stitch_shadow,
+                    (px, py + 1),
+                    (px + 9, py + 1),
+                    3
+                )
+
+                pygame.draw.line(
+                    screen,
+                    stitch_color,
+                    (px, py),
+                    (px + 9, py),
+                    2
+                )
+
+        # Lewa i prawa strona
+        for py in range(stitch_offset, screen_height - stitch_offset, stitch_spacing):
+            for px in (stitch_offset, screen_width - stitch_offset):
+                pygame.draw.line(
+                    screen,
+                    stitch_shadow,
+                    (px + 1, py),
+                    (px + 1, py + 9),
+                    3
+                )
+
+                pygame.draw.line(
+                    screen,
+                    stitch_color,
+                    (px, py),
+                    (px, py + 9),
+                    2
+                )
+
+        # =====================================================
+        # 6. METALOWE NAROŻNIKI
+        # =====================================================
+
+        corner_size = max(28, int(min(screen_width, screen_height) * 0.055))
+
+        corners = [
+            (edge_size, edge_size),
+            (screen_width - edge_size, edge_size),
+            (edge_size, screen_height - edge_size),
+            (screen_width - edge_size, screen_height - edge_size)
+        ]
+
+        for cx, cy in corners:
+            pygame.draw.circle(
+                screen,
+                (39, 25, 17),
+                (cx, cy),
+                corner_size // 2 + 3
+            )
+
+            pygame.draw.circle(
+                screen,
+                (117, 76, 39),
+                (cx, cy),
+                corner_size // 2
+            )
+
+            pygame.draw.circle(
+                screen,
+                (207, 157, 87),
+                (cx, cy),
+                corner_size // 2,
+                3
+            )
+
+            pygame.draw.circle(
+                screen,
+                (238, 199, 128),
+                (cx, cy),
+                4
+            )
+
+        # =====================================================
+        # 7. DELIKATNE CIENIOWANIE BRZEGÓW
+        # =====================================================
+
+        vignette = pygame.Surface(
+            (screen_width, screen_height),
+            pygame.SRCALPHA
+        )
+
+        vignette_width = max(
+            20,
+            int(min(screen_width, screen_height) * 0.12)
+        )
+
+        for i in range(vignette_width):
+            alpha = int(1 + 65 * (1 - i / vignette_width))
+
+            pygame.draw.rect(
+                vignette,
+                (25, 10, 4, alpha),
+                (
+                    i,
+                    i,
+                    screen_width - i * 2,
+                    screen_height - i * 2
+                ),
+                width=2
+            )
+
+        # =====================================================
+        # 8. PIONOWE PODZIAŁY EKWIPUNKU — STYL SKÓRZANY
+        # =====================================================
+
+        section_width = screen_width / 3
+
+        line_top = edge_size + 8
+        line_bottom = screen_height - edge_size - 8
+
+        for i in (1, 2):
+            line_x = int(section_width * i)
+
+            # Ciemny cień linii
+            pygame.draw.line(
+                screen,
+                (40, 22, 13),
+                (line_x + 2, line_top),
+                (line_x + 2, line_bottom),
+                6
+            )
+
+            # Główna linia — ciemny brąz
+            pygame.draw.line(
+                screen,
+                (75, 43, 25),
+                (line_x, line_top),
+                (line_x, line_bottom),
+                4
+            )
+
+            # Delikatny złotobrązowy brzeg
+            pygame.draw.line(
+                screen,
+                (183, 125, 68),
+                (line_x - 2, line_top),
+                (line_x - 2, line_bottom),
+                1
+            )
+
+            # Przeszycia wzdłuż podziału
+            for py in range(line_top + 12, line_bottom - 8, 22):
+                pygame.draw.line(
+                    screen,
+                    (220, 166, 104),
+                    (line_x - 5, py),
+                    (line_x + 5, py + 6),
+                    2
+                )
+
+        # =====================================================
+        # 9. POZIOME PODZIAŁY LEWEJ I PRAWEJ KOLUMNY
+        # =====================================================
+
+        section_height = screen_height / 3
+
+        left_start = 0
+        left_end = int(screen_width / 3)
+
+        right_start = int(screen_width * 2 / 3)
+        right_end = screen_width
+
+        for i in (1, 2):
+            line_y = int(section_height * i)
+
+            # Lewa kolumna
+            for start_x, end_x in (
+                (left_start + edge_size + 8, left_end - 8),
+                (right_start + 8, right_end - edge_size - 8)
+            ):
+                # Ciemny cień
+                pygame.draw.line(
+                    screen,
+                    (40, 22, 13),
+                    (start_x, line_y + 2),
+                    (end_x, line_y + 2),
+                    6
+                )
+
+                # Główna linia — ciemny brąz
+                pygame.draw.line(
+                    screen,
+                    (75, 43, 25),
+                    (start_x, line_y),
+                    (end_x, line_y),
+                    4
+                )
+
+                # Złotobrązowy brzeg
+                pygame.draw.line(
+                    screen,
+                    (183, 125, 68),
+                    (start_x, line_y - 2),
+                    (end_x, line_y - 2),
+                    1
+                )
+
+                # Przeszycia
+                for px in range(start_x + 12, end_x - 8, 22):
+                    pygame.draw.line(
+                        screen,
+                        (220, 166, 104),
+                        (px, line_y - 5),
+                        (px + 6, line_y + 5),
+                        2
+                    )
+
+        # =====================================================
+        # 10. PODZIAŁ ŚRODKOWEJ KOLUMNY: 20% / 60% / 20%
+        # =====================================================
+
+        center_start = int(screen_width / 3)
+        center_end = int(screen_width * 2 / 3)
+
+        center_top = edge_size + 8
+        center_bottom = screen_height - edge_size - 8
+        center_height = center_bottom - center_top
+
+        center_line_1 = int(center_top + center_height * 0.20)
+        center_line_2 = int(center_top + center_height * 0.80)
+
+        for line_y in (center_line_1, center_line_2):
+
+            pygame.draw.line(
+                screen,
+                (40, 22, 13),
+                (center_start + 8, line_y + 2),
+                (center_end - 8, line_y + 2),
+                6
+            )
+
+            pygame.draw.line(
+                screen,
+                (75, 43, 25),
+                (center_start + 8, line_y),
+                (center_end - 8, line_y),
+                4
+            )
+
+            pygame.draw.line(
+                screen,
+                (183, 125, 68),
+                (center_start + 8, line_y - 2),
+                (center_end - 8, line_y - 2),
+                1
+            )
+
+            for px in range(center_start + 20, center_end - 15, 22):
+                pygame.draw.line(
+                    screen,
+                    (220, 166, 104),
+                    (px, line_y - 5),
+                    (px + 6, line_y + 5),
+                    2
+                )
+
+        # =====================================================
+        # 11. TYTUŁY SEKCJI — FANTASY RPG
+        # =====================================================
+
+        title_font = pygame.font.Font(None, 44)
+
+        title_color = (255, 220, 155)
+        shadow_color = (35, 18, 10)
+        gold_color = (195, 139, 67)
+        light_gold = (255, 235, 185)
+
+        section_height = screen_height / 3
+        column_width = screen_width / 3
+
+        title_padding_y = 22
+
+        # =====================================================
+        # FUNKCJA RYSOWANIA OZDOBNEGO TYTUŁU
+        # =====================================================
+
+        def draw_inventory_title(title, center_x, top_y, max_width):
+            text = title_font.render(
+                title,
+                True,
+                title_color
+            )
+
+            # Dopasowanie napisu do szerokości sekcji
+            if text.get_width() > max_width:
+                scale = max_width / text.get_width()
+
+                text = pygame.transform.smoothscale(
+                    text,
+                    (
+                        int(text.get_width() * scale),
+                        int(text.get_height() * scale)
+                    )
+                )
+
+            text_rect = text.get_rect(
+                midtop=(int(center_x), int(top_y))
+            )
+
+            # Cień napisu
+            shadow = text.copy()
+            shadow.fill(
+                shadow_color,
+                special_flags=pygame.BLEND_RGB_MULT
+            )
+
+            screen.blit(
+                shadow,
+                (text_rect.x + 3, text_rect.y + 4)
+            )
+
+            # Główny napis
+            screen.blit(text, text_rect)
+
+            # Delikatne złote podkreślenie
+            line_y = text_rect.bottom + 8
+            line_width = min(
+                text_rect.width + 50,
+                int(max_width * 0.72)
+            )
+
+            line_left = int(center_x - line_width / 2)
+            line_right = int(center_x + line_width / 2)
+
+            pygame.draw.line(
+                screen,
+                gold_color,
+                (line_left, line_y),
+                (line_right, line_y),
+                2
+            )
+
+            # Jasny środek podkreślenia
+            pygame.draw.line(
+                screen,
+                light_gold,
+                (int(center_x - 18), line_y),
+                (int(center_x + 18), line_y),
+                2
+            )
+
+            # Ozdobne końcówki
+            for ornament_x in (line_left, line_right):
+                pygame.draw.circle(
+                    screen,
+                    light_gold,
+                    (ornament_x, line_y),
+                    3
+                )
+
+        # =====================================================
+        # LEWA KOLUMNA — ARMOR / UTILITY / FRUITS
+        # =====================================================
+
+        left_titles = [
+            "Armor:",
+            "Utility:",
+            "Fruits:"
+        ]
+
+        left_center_x = column_width / 2
+
+        for i, title in enumerate(left_titles):
+            section_top = int(section_height * i)
+
+            # Przesuń Armor i Utility niżej
+            extra_y = 50 if i == 0 else (15 if i == 1 else 0)
+
+            draw_inventory_title(
+                title,
+                left_center_x,
+                section_top + title_padding_y + extra_y,
+                column_width - edge_size * 2 - 20
+            )
+
+        # =====================================================
+        # PRAWA KOLUMNA — SWORDS / GUNS / PETS
+        # =====================================================
+
+        right_titles = [
+            "Swords:",
+            "Guns:",
+            "Pets:"
+        ]
+
+        right_center_x = column_width * 2.5
+
+        for i, title in enumerate(right_titles):
+            section_top = int(section_height * i)
+
+            # Przesuń tylko Swords niżej
+            extra_y = 50 if i == 0 else 0
+
+            draw_inventory_title(
+                title,
+                right_center_x,
+                section_top + title_padding_y + extra_y,
+                column_width - edge_size * 2 - 20
+            )
+
+        # =====================================================
+        # TYTUŁY SEKCJI — FANTASY RPG
+        # =====================================================
+
+        title_font = pygame.font.Font(None, 44)
+
+        title_color = (255, 220, 155)
+        shadow_color = (35, 18, 10)
+        gold_color = (195, 139, 67)
+        light_gold = (255, 235, 185)
+
+        section_height = screen_height / 3
+        column_width = screen_width / 3
+
+        title_padding_y = 22
+
+        # =====================================================
+        # FUNKCJA RYSOWANIA OZDOBNEGO TYTUŁU
+        # =====================================================
+
+        def draw_inventory_title(title, center_x, top_y, max_width):
+            text = title_font.render(
+                title,
+                True,
+                title_color
+            )
+
+            # Dopasowanie napisu do szerokości sekcji
+            if text.get_width() > max_width:
+                scale = max_width / text.get_width()
+
+                text = pygame.transform.smoothscale(
+                    text,
+                    (
+                        max(1, int(text.get_width() * scale)),
+                        max(1, int(text.get_height() * scale))
+                    )
+                )
+
+            text_rect = text.get_rect(
+                midtop=(int(center_x), int(top_y))
+            )
+
+            # Cień napisu
+            shadow = text.copy()
+            shadow.fill(
+                shadow_color,
+                special_flags=pygame.BLEND_RGB_MULT
+            )
+
+            screen.blit(
+                shadow,
+                (text_rect.x + 3, text_rect.y + 4)
+            )
+
+            # Główny napis
+            screen.blit(text, text_rect)
+
+            # Złote podkreślenie
+            line_y = text_rect.bottom + 8
+
+            line_width = min(
+                text_rect.width + 50,
+                int(max_width * 0.72)
+            )
+
+            line_left = int(center_x - line_width / 2)
+            line_right = int(center_x + line_width / 2)
+
+            pygame.draw.line(
+                screen,
+                gold_color,
+                (line_left, line_y),
+                (line_right, line_y),
+                2
+            )
+
+            # Jasny środek podkreślenia
+            pygame.draw.line(
+                screen,
+                light_gold,
+                (int(center_x - 18), line_y),
+                (int(center_x + 18), line_y),
+                2
+            )
+
+            # Ozdobne końcówki
+            for ornament_x in (line_left, line_right):
+                pygame.draw.circle(
+                    screen,
+                    light_gold,
+                    (ornament_x, line_y),
+                    3
+                )
+
+        # =====================================================
+        # LEWA KOLUMNA — ARMOR / UTILITY / FRUITS
+        # =====================================================
+
+        left_titles = [
+            "Armor:",
+            "Utility:",
+            "Fruits:"
+        ]
+
+        left_center_x = column_width / 2
+
+        for i, title in enumerate(left_titles):
+            section_top = int(section_height * i)
+
+            # Armor niżej o 50 px, Utility niżej o 35 px
+            extra_y = 50 if i == 0 else (15 if i == 1 else 0)
+
+            draw_inventory_title(
+                title,
+                left_center_x,
+                section_top + title_padding_y + extra_y,
+                column_width - edge_size * 2 - 20
+            )
+
+        # =====================================================
+        # PRAWA KOLUMNA — SWORDS / GUNS / PETS
+        # =====================================================
+
+        right_titles = [
+            "Swords:",
+            "Guns:",
+            "Pets:"
+        ]
+
+        right_center_x = column_width * 2.5
+
+        for i, title in enumerate(right_titles):
+            section_top = int(section_height * i)
+
+            # Tylko Swords niżej o 50 px
+            extra_y = 50 if i == 0 else 0
+
+            draw_inventory_title(
+                title,
+                right_center_x,
+                section_top + title_padding_y + extra_y,
+                column_width - edge_size * 2 - 20
+            )
+
+        # =====================================================
+        # ŚRODKOWA KOLUMNA — QUEST
+        # =====================================================
+
+        center_column_x = screen_width / 2
+
+        # Tytuł Quest przesunięty niżej
+        quest_title_y = title_padding_y + 35
+
+        draw_inventory_title(
+            "Quest:",
+            center_column_x,
+            quest_title_y,
+            column_width - edge_size * 2 - 20
+        )
+
+        # =====================================================
+        # NAZWA AKTUALNEGO QUESTA
+        # =====================================================
+
+        quest_name = save_data.get(
+            "quest_doing_rn_name",
+            "No active quest"
+        )
+
+        quest_name = str(quest_name)
+
+        quest_name_font = pygame.font.Font(None, 46)
+
+        quest_name_color = (255, 225, 165)
+        quest_shadow_color = (35, 18, 10)
+
+        max_quest_width = int(
+            column_width - edge_size * 2 - 40
+        )
+
+        # =====================================================
+        # AUTOMATYCZNE ZAWIJANIE NAZWY QUESTA
+        # =====================================================
+
+        quest_lines = []
+        current_line = ""
+
+        for word in quest_name.split():
+            test_line = f"{current_line} {word}".strip()
+
+            if quest_name_font.size(test_line)[0] <= max_quest_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    quest_lines.append(current_line)
+
+                current_line = ""
+
+                # Zawijanie bardzo długich słów
+                for character in word:
+                    test_word = current_line + character
+
+                    if quest_name_font.size(test_word)[0] <= max_quest_width:
+                        current_line = test_word
+                    else:
+                        if current_line:
+                            quest_lines.append(current_line)
+
+                        current_line = character
+
+        if current_line:
+            quest_lines.append(current_line)
+
+        # =====================================================
+        # RYSOWANIE NAZWY QUESTA — WYŚRODKOWANA
+        # =====================================================
+
+        quest_text_y = quest_title_y + 65
+        quest_line_spacing = quest_name_font.get_linesize() + 5
+
+        for line in quest_lines:
+            quest_text = quest_name_font.render(
+                line,
+                True,
+                quest_name_color
+            )
+
+            quest_rect = quest_text.get_rect(
+                midtop=(
+                    int(center_column_x),
+                    int(quest_text_y)
+                )
+            )
+
+            # Cień
+            quest_shadow = quest_text.copy()
+            quest_shadow.fill(
+                quest_shadow_color,
+                special_flags=pygame.BLEND_RGB_MULT
+            )
+
+            screen.blit(
+                quest_shadow,
+                (quest_rect.x + 3, quest_rect.y + 4)
+            )
+
+            # Nazwa questa
+            screen.blit(
+                quest_text,
+                quest_rect
+            )
+
+            quest_text_y += quest_line_spacing
+
+        # =====================================================
+        # NAGRODY ZA QUEST — EXP + PIENIĄDZE
+        # =====================================================
+
+        # Wartości do zmiany
+        quest_exp_reward = save_data["max_exp"]
+        self.lvl = data["saves"][last_save]["lvl"]
+        if self.lvl <= 5:
+            quest_money_reward = 500
+        elif self.lvl <= 10:
+            quest_money_reward = 1000
+        elif self.lvl <= 25:
+            quest_money_reward = 2500
+        elif self.lvl <= 50:
+            quest_money_reward = 5000
+        elif self.lvl <= 75:
+            quest_money_reward = 7500
+        elif self.lvl <= 80:
+            quest_money_reward = 8000
+        elif self.lvl <= 99:
+            quest_money_reward = 10000
+        elif self.lvl >= 100:
+            quest_money_reward = 20000
+
+        # Większa czcionka
+        reward_font = pygame.font.Font(None, 48)
+
+        # Kolory
+        exp_color = (255, 220, 40)       # Żółty
+        money_color = (60, 230, 90)      # Zielony
+        reward_shadow_color = (35, 18, 10)
+
+        # Pozycja pod nazwą questa
+        reward_y = quest_text_y + 15
+
+        # Szerokość środkowej kolumny
+        center_left = int(screen_width / 3)
+        center_right = int(screen_width * 2 / 3)
+
+        reward_margin = 25
+
+        # =====================================================
+        # EXP — LEWA STRONA
+        # =====================================================
+
+        # =====================================================
+        # EXP — ŚRODEK LEWEJ POŁOWY
+        # =====================================================
+
+        exp_text = reward_font.render(
+            f"Exp: {quest_exp_reward}",
+            True,
+            exp_color
+        )
+
+        exp_rect = exp_text.get_rect(
+            midtop=(
+                int(screen_width / 3 + column_width / 4),
+                int(reward_y)
+            )
+        )
+
+        exp_shadow = exp_text.copy()
+        exp_shadow.fill(
+            reward_shadow_color,
+            special_flags=pygame.BLEND_RGB_MULT
+        )
 
         screen.blit(
-            dark_overlay,
-            (0, 0)
+            exp_shadow,
+            (exp_rect.x + 3, exp_rect.y + 4)
         )
+        screen.blit(exp_text, exp_rect)
+
+        # =====================================================
+        # PIENIĄDZE — ŚRODEK PRAWEJ POŁOWY
+        # =====================================================
+
+        money_text = reward_font.render(
+            f"$: {quest_money_reward}",
+            True,
+            money_color
+        )
+
+        money_rect = money_text.get_rect(
+            midtop=(
+                int(screen_width / 3 + column_width * 3 / 4),
+                int(reward_y)
+            )
+        )
+
+        money_shadow = money_text.copy()
+        money_shadow.fill(
+            reward_shadow_color,
+            special_flags=pygame.BLEND_RGB_MULT
+        )
+
+        screen.blit(
+            money_shadow,
+            (money_rect.x + 3, money_rect.y + 4)
+        )
+        screen.blit(money_text, money_rect)
+
+
+        # =====================================================
+        # POZIOM + PASEK EXP + STATYSTYKI
+        # =====================================================
+
+        player_lvl = int(save_data.get("lvl", 1))
+        player_exp = int(save_data.get("exp", 0))
+        player_max_exp = max(1, int(save_data.get("max_exp", 100)))
+
+        points_to_give = int(save_data.get("stats_points_to_give", 0))
+
+        health_and_def_stats = int(
+            save_data.get("health_and_def_stats", 0)
+        )
+        energy_stats = int(save_data.get("energy_stats", 0))
+        dmg_and_forget_resistance_stats = int(
+            save_data.get("dmg_and_forget_resistance_stats", 0)
+        )
+        combo_stats = int(save_data.get("combo_stats", 0))
+
+        center_left = int(screen_width / 3)
+        center_right = int(screen_width * 2 / 3)
+        center_x = (center_left + center_right) // 2
+        center_width = center_right - center_left
+
+        # Przesunięcie całego bloku w górę,
+        # żeby zmieściły się punkty i obie linijki statystyk.
+        level_section_y = int(screen_height * 0.80)
+
+        level_font = pygame.font.Font(None, 46)
+        exp_font = pygame.font.Font(None, 30)
+        points_font = pygame.font.Font(None, 38)
+        stat_font = pygame.font.Font(None, 32)
+        plus_font = pygame.font.Font(None, 38)
+
+        level_color = (255, 215, 100)
+        exp_color = (255, 245, 220)
+        points_color = (255, 225, 155)
+        stat_color = (255, 235, 200)
+
+        exp_bar_bg = (45, 30, 25)
+        exp_bar_border = (190, 145, 75)
+        exp_bar_fill = (70, 190, 100)
+        text_shadow_color = (30, 20, 15)
+
+        # =====================================================
+        # 1. POZIOM GRACZA
+        # =====================================================
+
+        level_text = level_font.render(
+            f"Lvl: {player_lvl}",
+            True,
+            level_color
+        )
+
+        level_rect = level_text.get_rect(
+            midtop=(center_x, level_section_y)
+        )
+
+        level_shadow = level_text.copy()
+        level_shadow.fill(
+            text_shadow_color,
+            special_flags=pygame.BLEND_RGB_MULT
+        )
+
+        screen.blit(
+            level_shadow,
+            (level_rect.x + 2, level_rect.y + 3)
+        )
+        screen.blit(level_text, level_rect)
+
+        # =====================================================
+        # 2. PASEK EXP
+        # =====================================================
+
+        bar_width = int(center_width * 0.72)
+        bar_height = 27
+
+        bar_x = center_x - bar_width // 2
+        bar_y = level_rect.bottom + 10
+
+        pygame.draw.rect(
+            screen,
+            exp_bar_bg,
+            (bar_x, bar_y, bar_width, bar_height),
+            border_radius=8
+        )
+
+        exp_progress = max(
+            0,
+            min(1, player_exp / player_max_exp)
+        )
+
+        filled_width = int((bar_width - 4) * exp_progress)
+
+        if filled_width > 0:
+            pygame.draw.rect(
+                screen,
+                exp_bar_fill,
+                (
+                    bar_x + 2,
+                    bar_y + 2,
+                    filled_width,
+                    bar_height - 4
+                ),
+                border_radius=6
+            )
+
+        pygame.draw.rect(
+            screen,
+            exp_bar_border,
+            (bar_x, bar_y, bar_width, bar_height),
+            width=2,
+            border_radius=8
+        )
+
+        exp_text = exp_font.render(
+            f"{player_exp} / {player_max_exp}",
+            True,
+            exp_color
+        )
+
+        exp_rect = exp_text.get_rect(
+            center=(center_x, bar_y + bar_height // 2)
+        )
+
+        exp_shadow = exp_text.copy()
+        exp_shadow.fill(
+            text_shadow_color,
+            special_flags=pygame.BLEND_RGB_MULT
+        )
+
+        screen.blit(
+            exp_shadow,
+            (exp_rect.x + 1, exp_rect.y + 2)
+        )
+        screen.blit(exp_text, exp_rect)
+
+        # =====================================================
+        # 3. POINTS TO GIVE
+        # =====================================================
+
+        points_y = bar_y + bar_height + 12
+
+        points_text = points_font.render(
+            f"Points to give: {points_to_give}",
+            True,
+            points_color
+        )
+
+        points_rect = points_text.get_rect(
+            center=(center_x, points_y + points_text.get_height() // 2)
+        )
+
+        points_shadow = points_text.copy()
+        points_shadow.fill(
+            text_shadow_color,
+            special_flags=pygame.BLEND_RGB_MULT
+        )
+
+        screen.blit(
+            points_shadow,
+            (points_rect.x + 2, points_rect.y + 3)
+        )
+        screen.blit(points_text, points_rect)
+
+        # =====================================================
+        # 4. FUNKCJA RYSOWANIA PRZYCISKU +
+        # =====================================================
+
+        plus_size = 34
+
+        def draw_stat_plus(center_button_x, center_button_y):
+            base_rect = pygame.Rect(
+                int(center_button_x - plus_size // 2),
+                int(center_button_y - plus_size // 2),
+                plus_size,
+                plus_size
+            )
+            # Przycisk + delikatnie powiększa się po najechaniu.
+            hovered = base_rect.collidepoint(pygame.mouse.get_pos())
+            button_rect = base_rect.inflate(12, 12) if hovered else base_rect
+
+            # Cień przycisku
+            pygame.draw.rect(
+                screen,
+                (40, 22, 13),
+                button_rect.move(2, 3),
+                border_radius=7
+            )
+
+            # Tło
+            pygame.draw.rect(
+                screen,
+                (105, 65, 32),
+                button_rect,
+                border_radius=7
+            )
+
+            # Złota ramka
+            pygame.draw.rect(
+                screen,
+                (225, 180, 95),
+                button_rect,
+                width=2,
+                border_radius=7
+            )
+
+            # Znak +
+            plus_text = plus_font.render(
+                "+",
+                True,
+                (255, 240, 190)
+            )
+
+            plus_rect = plus_text.get_rect(
+                center=button_rect.center
+            )
+
+            screen.blit(plus_text, plus_rect)
+
+            return button_rect
+
+        # =====================================================
+        # 5. IKONA SERCA — HEALTH / DEFENSE
+        # =====================================================
+
+        def draw_heart_icon(cx, cy):
+            points = [
+                (cx, cy + 12),
+                (cx - 15, cy - 1),
+                (cx - 15, cy - 8),
+                (cx - 10, cy - 13),
+                (cx - 4, cy - 13),
+                (cx, cy - 7),
+                (cx + 4, cy - 13),
+                (cx + 10, cy - 13),
+                (cx + 15, cy - 8),
+                (cx + 15, cy - 1)
+            ]
+
+            pygame.draw.polygon(
+                screen,
+                (100, 15, 25),
+                [(x + 2, y + 2) for x, y in points]
+            )
+
+            pygame.draw.polygon(
+                screen,
+                (220, 40, 55),
+                points
+            )
+
+            pygame.draw.lines(
+                screen,
+                (255, 135, 135),
+                False,
+                points[2:6],
+                2
+            )
+
+        # =====================================================
+        # 6. IKONA ENERGII — BŁYSKAWICA
+        # =====================================================
+
+        def draw_energy_icon(cx, cy):
+            points = [
+                (cx + 3, cy - 16),
+                (cx - 11, cy + 2),
+                (cx - 2, cy + 2),
+                (cx - 5, cy + 16),
+                (cx + 12, cy - 5),
+                (cx + 3, cy - 5)
+            ]
+
+            pygame.draw.polygon(
+                screen,
+                (90, 65, 15),
+                [(x + 2, y + 2) for x, y in points]
+            )
+
+            pygame.draw.polygon(
+                screen,
+                (255, 210, 45),
+                points
+            )
+
+            pygame.draw.polygon(
+                screen,
+                (255, 245, 155),
+                points,
+                2
+            )
+
+        # =====================================================
+        # 7. IKONA PIĘŚCI — DAMAGE
+        # =====================================================
+
+        def draw_fist_icon(cx, cy):
+            fist_color = (205, 145, 95)
+            outline_color = (75, 38, 24)
+            highlight_color = (245, 190, 135)
+
+            # Dłoń
+            pygame.draw.rect(
+                screen,
+                outline_color,
+                (cx - 13, cy - 4, 25, 17),
+                border_radius=5
+            )
+
+            pygame.draw.rect(
+                screen,
+                fist_color,
+                (cx - 11, cy - 5, 22, 15),
+                border_radius=4
+            )
+
+            # Palce
+            for i in range(4):
+                finger_x = cx - 11 + i * 6
+
+                pygame.draw.rect(
+                    screen,
+                    outline_color,
+                    (finger_x, cy - 13, 8, 13),
+                    border_radius=3
+                )
+
+                pygame.draw.rect(
+                    screen,
+                    fist_color,
+                    (finger_x + 1, cy - 12, 6, 11),
+                    border_radius=2
+                )
+
+            # Kciuk
+            pygame.draw.rect(
+                screen,
+                outline_color,
+                (cx + 5, cy - 1, 11, 8),
+                border_radius=3
+            )
+
+            pygame.draw.rect(
+                screen,
+                fist_color,
+                (cx + 5, cy, 9, 6),
+                border_radius=2
+            )
+
+            # Jasne linie na palcach
+            for i in range(3):
+                pygame.draw.line(
+                    screen,
+                    highlight_color,
+                    (cx - 7 + i * 6, cy - 9),
+                    (cx - 4 + i * 6, cy - 9),
+                    1
+                )
+
+        # =====================================================
+        # 8. IKONA COMBO — TRZY FIOLETOWE STRZAŁKI W GÓRĘ
+        # =====================================================
+
+        def draw_combo_icon(cx, cy):
+            arrow_color = (175, 75, 255)
+            arrow_outline = (70, 25, 110)
+            arrow_highlight = (220, 165, 255)
+
+            for offset_x in (-10, 0, 10):
+                points = [
+                    (cx + offset_x, cy - 13),
+                    (cx + offset_x - 5, cy - 5),
+                    (cx + offset_x - 2, cy - 5),
+                    (cx + offset_x - 2, cy + 10),
+                    (cx + offset_x + 2, cy + 10),
+                    (cx + offset_x + 2, cy - 5),
+                    (cx + offset_x + 5, cy - 5)
+                ]
+
+                pygame.draw.polygon(
+                    screen,
+                    arrow_outline,
+                    points
+                )
+
+                inner_points = [
+                    (cx + offset_x, cy - 11),
+                    (cx + offset_x - 3, cy - 6),
+                    (cx + offset_x - 1, cy - 6),
+                    (cx + offset_x - 1, cy + 8),
+                    (cx + offset_x + 1, cy + 8),
+                    (cx + offset_x + 1, cy - 6),
+                    (cx + offset_x + 3, cy - 6)
+                ]
+
+                pygame.draw.polygon(
+                    screen,
+                    arrow_color,
+                    inner_points
+                )
+
+                pygame.draw.line(
+                    screen,
+                    arrow_highlight,
+                    (cx + offset_x, cy - 9),
+                    (cx + offset_x, cy - 3),
+                    1
+                )
+
+        # =====================================================
+        # 9. FUNKCJA RYSUJĄCA POJEDYNCZĄ STATYSTYKĘ
+        # =====================================================
+
+        stat_row_1_y = points_rect.bottom + 22
+        stat_row_2_y = stat_row_1_y + 48
+
+        # Środki lewej i prawej połowy środkowej kolumny
+        left_stat_x = int(center_left + center_width * 0.25)
+        right_stat_x = int(center_left + center_width * 0.75)
+
+
+        def draw_stat_entry(
+            stat_center_x,
+            stat_center_y,
+            stat_level,
+            icon_function,
+            description
+        ):
+            # Poziom statystyki
+            stat_text = stat_font.render(
+                f"Lvl: {stat_level}",
+                True,
+                stat_color
+            )
+
+            stat_rect = stat_text.get_rect(
+                midright=(stat_center_x - 28, stat_center_y)
+            )
+
+            stat_shadow = stat_text.copy()
+            stat_shadow.fill(
+                text_shadow_color,
+                special_flags=pygame.BLEND_RGB_MULT
+            )
+
+            screen.blit(
+                stat_shadow,
+                (stat_rect.x + 2, stat_rect.y + 2)
+            )
+            screen.blit(stat_text, stat_rect)
+
+            # Przycisk +
+            plus_center_x = stat_center_x + 2
+
+            plus_rect = draw_stat_plus(
+                plus_center_x,
+                stat_center_y
+            )
+
+            # Ikona statystyki
+            icon_center_x = plus_rect.right + 19
+
+            icon_function(
+                icon_center_x,
+                stat_center_y
+            )
+
+            # Mały tekst pod ikoną
+            # Mały tekst po prawej stronie ikony
+            description_font = pygame.font.Font(None, 25)
+
+            description_text = description_font.render(
+                description,
+                True,
+                (255, 225, 170)
+            )
+
+            description_rect = description_text.get_rect(
+                midleft=(
+                    icon_center_x + 17,
+                    stat_center_y
+                )
+            )
+
+            screen.blit(
+                description_text,
+                description_rect
+            )
+
+            return plus_rect
+
+        self.health_plus_rect = draw_stat_entry(
+            left_stat_x,
+            stat_row_1_y,
+            health_and_def_stats,
+            draw_heart_icon,
+            "Health / Defense"
+        )
+
+        self.energy_plus_rect = draw_stat_entry(
+            right_stat_x,
+            stat_row_1_y,
+            energy_stats,
+            draw_energy_icon,
+            "Energy"
+        )
+
+        self.damage_plus_rect = draw_stat_entry(
+            left_stat_x,
+            stat_row_2_y,
+            dmg_and_forget_resistance_stats,
+            draw_fist_icon,
+            "Damage"
+        )
+
+        self.combo_plus_rect = draw_stat_entry(
+            right_stat_x,
+            stat_row_2_y,
+            combo_stats,
+            draw_combo_icon,
+            "Combo"
+        )
+
+        # =====================================================
+        # 12. CIENIOWANIE BRZEGÓW — NA SAMYM KOŃCU
+        # =====================================================
+
+        screen.blit(vignette, (0, 0))
+
+        Player.set_position(settings.WIDTH // 2, settings.HEIGHT // 2)
+        Player.draw(screen, 2)
+
+        # =====================================================
+        # BRĄZOWE, NIEKLIKALNE PRZYCISKI W EKWIPUNKU
+        # =====================================================
+
+        import pygame
+
+        # Wymiary środkowej sekcji — dopasuj do swojego panelu
+        middle_width = 600
+        middle_height = 650
+
+        middle_x = settings.WIDTH // 2 - middle_width // 2
+        middle_y = settings.HEIGHT // 2 - middle_height // 2
+
+        # Wygląd przycisków
+        slot_size = 115
+        slot_gap = 55
+
+        slot_color = (126, 78, 43)
+        slot_border = (65, 39, 23)
+        slot_highlight = (164, 111, 68)
+        slot_shadow = (76, 45, 26)
+
+        # Odstęp przycisków od ścian sekcji
+        wall_padding = 14
+
+        # =====================================================
+        # LEWA STRONA — 3 PRZYCISKI
+        # =====================================================
+
+        left_slots = []
+
+        left_total_height = 3 * slot_size + 2 * slot_gap
+        left_start_y = middle_y + (middle_height - left_total_height) // 2 + 12
+
+        for i in range(3):
+            slot_x = middle_x - slot_size - (-25)
+            slot_y = left_start_y + i * (slot_size + slot_gap)
+
+            left_slots.append(
+                pygame.Rect(slot_x, slot_y, slot_size, slot_size)
+            )
+
+        # =====================================================
+        # PRAWA STRONA — 4 PRZYCISKI
+        # =====================================================
+
+        right_slots = []
+
+        right_total_height = 4 * slot_size + 3 * slot_gap
+        right_start_y = middle_y + (middle_height - right_total_height) // 2 + 12
+
+        for i in range(4):
+            slot_x = middle_x + middle_width + (-25)
+            slot_y = right_start_y + i * (slot_size + slot_gap)
+
+            right_slots.append(
+                pygame.Rect(slot_x, slot_y, slot_size, slot_size)
+            )
+
+        # =====================================================
+        # RYSOWANIE PRZYCISKÓW
+        # =====================================================
+
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_inventory_slots = []
+
+        for slot in left_slots + right_slots:
+            # Powiększenie slotu pod kursorem bez przesuwania jego środka.
+            hovered = slot.collidepoint(mouse_pos)
+            draw_slot = slot.inflate(14, 14) if hovered else slot
+            hovered_inventory_slots.append(draw_slot)
+
+            # Cień pod przyciskiem
+            shadow_rect = draw_slot.move(3, 4)
+            pygame.draw.rect(
+                screen,
+                slot_shadow,
+                shadow_rect,
+                border_radius=12 if hovered else 10
+            )
+
+            # Główne brązowe tło
+            pygame.draw.rect(
+                screen,
+                slot_highlight if hovered else slot_color,
+                draw_slot,
+                border_radius=12 if hovered else 10
+            )
+
+            # Ciemna obwódka
+            pygame.draw.rect(
+                screen,
+                slot_border,
+                draw_slot,
+                width=4 if hovered else 3,
+                border_radius=12 if hovered else 10
+            )
+
+            # Delikatne rozjaśnienie górnej krawędzi
+            pygame.draw.line(
+                screen,
+                (205, 151, 99) if hovered else slot_highlight,
+                (draw_slot.x + 10, draw_slot.y + 4),
+                (draw_slot.right - 10, draw_slot.y + 4),
+                3 if hovered else 2
+            )
+
+        # =====================================================
+        # IKONY PRZYCISKÓW EKWIPUNKU
+        # 1. Koszulka  2. Mikstura  3. Jabłko
+        # 4. Miecz     5. Kusza     6. Spodnie  7. Pies
+        # =====================================================
+
+        import pygame
+        import math
+
+        def draw_inventory_icon(screen, slot, icon_type):
+            # Środek przycisku
+            cx, cy = slot.center
+
+            # Skala ikony względem przycisku
+            s = slot.width / 100
+
+            def p(x, y):
+                return (int(cx + x * s), int(cy + y * s))
+
+            def polygon(color, points):
+                pygame.draw.polygon(screen, color, [p(x, y) for x, y in points])
+
+            def line(color, start, end, width=3):
+                pygame.draw.line(
+                    screen, color, p(*start), p(*end),
+                    max(1, int(width * s))
+                )
+
+            def circle(color, x, y, radius):
+                pygame.draw.circle(
+                    screen, color, p(x, y), max(1, int(radius * s))
+                )
+
+            # =====================================================
+            # 1. KOSZULKA — FANTASY ARMOR
+            # =====================================================
+            if icon_type == "shirt":
+                # Metalowe naramienniki
+                polygon((105, 112, 125), [
+                    (-14, -29), (-30, -23), (-38, -10),
+                    (-29, 0), (-17, -7)
+                ])
+                polygon((105, 112, 125), [
+                    (14, -29), (30, -23), (38, -10),
+                    (29, 0), (17, -7)
+                ])
+
+                # Główny napierśnik
+                polygon((65, 75, 91), [
+                    (-14, -29), (-24, -24), (-29, -9),
+                    (-20, 0), (-17, 25), (17, 25),
+                    (20, 0), (29, -9), (24, -24),
+                    (14, -29), (8, -18), (-8, -18)
+                ])
+
+                # Metaliczne panele
+                polygon((112, 124, 143), [
+                    (-13, -19), (13, -19), (18, -5),
+                    (13, 18), (-13, 18), (-18, -5)
+                ])
+                polygon((151, 161, 174), [
+                    (-7, -15), (7, -15), (10, -3),
+                    (6, 13), (-6, 13), (-10, -3)
+                ])
+
+                # Złote ozdoby
+                line((224, 180, 83), (-22, -9), (-16, 0), 3)
+                line((224, 180, 83), (22, -9), (16, 0), 3)
+                line((224, 180, 83), (0, -13), (0, 17), 3)
+
+                # Pas z klamrą
+                polygon((73, 43, 29), [
+                    (-18, 13), (18, 13), (18, 20), (-18, 20)
+                ])
+                pygame.draw.rect(
+                    screen, (235, 190, 75),
+                    pygame.Rect(
+                        int(cx - 5 * s), int(cy + 13 * s),
+                        max(1, int(10 * s)), max(1, int(7 * s))
+                    ),
+                    max(1, int(2 * s))
+                )
+
+                # Obrys pancerza
+                polygon((39, 45, 58), [
+                    (-14, -29), (-24, -24), (-29, -9),
+                    (-20, 0), (-17, 25), (17, 25),
+                    (20, 0), (29, -9), (24, -24),
+                    (14, -29), (8, -18), (-8, -18)
+                ])
+                # Ponowne narysowanie metalowego wnętrza
+                polygon((112, 124, 143), [
+                    (-12, -17), (12, -17), (16, -4),
+                    (12, 15), (-12, 15), (-16, -4)
+                ])
+                line((224, 180, 83), (0, -13), (0, 15), 3)
+
+
+
+            # -------------------------------------------------
+            # 2. MIKSTURA — STYL MINECRAFT
+            # -------------------------------------------------
+            elif icon_type == "potion":
+                # Korek
+                pygame.draw.rect(
+                    screen, (105, 63, 34),
+                    pygame.Rect(
+                        int(cx - 9 * s), int(cy - 34 * s),
+                        max(1, int(18 * s)), max(1, int(10 * s))
+                    ),
+                    border_radius=max(1, int(2 * s))
+                )
+                pygame.draw.rect(
+                    screen, (207, 164, 91),
+                    pygame.Rect(
+                        int(cx - 11 * s), int(cy - 24 * s),
+                        max(1, int(22 * s)), max(1, int(8 * s))
+                    )
+                )
+
+                # Szklana butelka
+                polygon((188, 218, 225), [
+                    (-11, -16), (11, -16), (11, -5),
+                    (23, 7), (23, 25), (17, 31),
+                    (-17, 31), (-23, 25), (-23, 7),
+                    (-11, -5)
+                ])
+                polygon((65, 100, 220), [
+                    (-17, 10), (17, 10), (17, 24),
+                    (12, 27), (-12, 27), (-17, 24)
+                ])
+                polygon((112, 156, 255), [
+                    (-8, -12), (-3, -12), (-3, 3), (-8, 3)
+                ])
+                line((235, 240, 255), (-15, 6), (-15, 19), 3)
+
+            # -------------------------------------------------
+            # 3. JABŁKO
+            # -------------------------------------------------
+            elif icon_type == "apple":
+                polygon((190, 35, 35), [
+                    (-2, -14), (-15, -24), (-28, -16),
+                    (-32, -2), (-27, 15), (-13, 27),
+                    (0, 25), (13, 27), (27, 15),
+                    (32, -2), (28, -16), (15, -24),
+                    (2, -14)
+                ])
+                line((89, 52, 27), (0, -16), (3, -31), 5)
+                polygon((54, 151, 62), [
+                    (2, -25), (15, -34), (28, -30),
+                    (19, -20), (8, -19)
+                ])
+                circle((255, 110, 85), -15, -8, 5)
+
+            # -------------------------------------------------
+            # 4. MIECZ
+            # -------------------------------------------------
+            elif icon_type == "sword":
+                polygon((205, 218, 225), [
+                    (-3, -35), (5, -28), (5, 12),
+                    (0, 22), (-5, 12), (-5, -28)
+                ])
+                polygon((115, 125, 139), [
+                    (-3, -35), (0, -42), (5, -28), (-3, -25)
+                ])
+                line((224, 174, 75), (-15, 7), (15, -1), 5)
+                line((107, 65, 35), (0, 15), (0, 31), 7)
+                circle((230, 180, 80), 0, 33, 5)
+
+            # =====================================================
+            # 5. ŁUK — PRZESUNIĘTY W PRAWO, STRZAŁA W LEWO
+            # =====================================================
+            elif icon_type == "crossbow":
+
+                # Przesunięcie łuku w prawo
+                bow_x = 10
+
+                def bp(x, y):
+                    return p(x + bow_x, y)
+
+                # Drewniane ramiona łuku
+                pygame.draw.arc(
+                    screen,
+                    (103, 57, 29),
+                    pygame.Rect(
+                        int(cx + (bow_x - 34) * s),
+                        int(cy - 37 * s),
+                        max(1, int(57 * s)),
+                        max(1, int(74 * s))
+                    ),
+                    math.radians(65),
+                    math.radians(295),
+                    max(2, int(6 * s))
+                )
+
+                # Jasna krawędź drewna
+                pygame.draw.arc(
+                    screen,
+                    (184, 119, 58),
+                    pygame.Rect(
+                        int(cx + (bow_x - 30) * s),
+                        int(cy - 32 * s),
+                        max(1, int(48 * s)),
+                        max(1, int(64 * s))
+                    ),
+                    math.radians(65),
+                    math.radians(295),
+                    max(1, int(2 * s))
+                )
+
+                # Cięciwa
+                line((225, 220, 202), (bow_x - 8, -35), (bow_x - 8, 35), 2)
+
+                # Uchwyt
+                line((70, 39, 24), (bow_x - 8, -8), (bow_x - 8, 9), 8)
+                line((218, 173, 91), (bow_x - 11, -5), (bow_x - 5, -1), 2)
+                line((218, 173, 91), (bow_x - 11, 2), (bow_x - 5, 6), 2)
+
+                # Strzała pozioma, skierowana w LEWO
+                line(
+                    (220, 220, 215),
+                    (bow_x + 25, 0),
+                    (bow_x - 29, 0),
+                    3
+                )
+
+                # Grot skierowany w lewo
+                polygon((190, 199, 207), [
+                    (bow_x - 38, 0),
+                    (bow_x - 26, -6),
+                    (bow_x - 28, 0),
+                    (bow_x - 26, 6)
+                ])
+
+                # Pióra na końcu strzały
+                polygon((170, 45, 42), [
+                    (bow_x + 22, 0),
+                    (bow_x + 30, -7),
+                    (bow_x + 27, 0)
+                ])
+                polygon((170, 45, 42), [
+                    (bow_x + 22, 0),
+                    (bow_x + 30, 7),
+                    (bow_x + 27, 0)
+                ])
+
+                # Złote zakończenia łuku
+                circle((230, 184, 80), bow_x - 8, -35, 3)
+                circle((230, 184, 80), bow_x - 8, 35, 3)
+
+            # =====================================================
+            # 6. SPODNIE — FANTASY LEG ARMOR
+            # =====================================================
+            elif icon_type == "pants":
+                # Ciemna sylwetka spodni
+                polygon((42, 47, 64), [
+                    (-21, -28), (21, -28), (20, -10),
+                    (16, 29), (2, 29), (0, 3),
+                    (-3, 29), (-17, 29), (-20, -10)
+                ])
+
+                # Metalowe płyty na udach
+                polygon((106, 119, 139), [
+                    (-19, -17), (-3, -17), (-4, 0),
+                    (-17, 3), (-20, -5)
+                ])
+                polygon((106, 119, 139), [
+                    (3, -17), (19, -17), (20, -5),
+                    (17, 3), (4, 0)
+                ])
+
+                # Panele kolanowe
+                polygon((150, 159, 174), [
+                    (-17, 3), (-4, 1), (-4, 12),
+                    (-16, 14)
+                ])
+                polygon((150, 159, 174), [
+                    (4, 1), (17, 3), (16, 14),
+                    (4, 12)
+                ])
+
+                # Pasy skórzane
+                line((103, 66, 35), (-20, -9), (20, -9), 4)
+                line((103, 66, 35), (-18, 17), (-5, 17), 3)
+                line((103, 66, 35), (5, 17), (18, 17), 3)
+
+                # Złote klamry
+                circle((231, 183, 76), -11, -9, 3)
+                circle((231, 183, 76), 11, -9, 3)
+
+                # Metaliczne krawędzie
+                line((185, 192, 205), (-19, -15), (-16, -2), 2)
+                line((185, 192, 205), (19, -15), (16, -2), 2)
+                line((185, 192, 205), (-14, 26), (-5, 26), 2)
+                line((185, 192, 205), (5, 26), (14, 26), 2)
+
+
+            # =====================================================
+            # 7. MAGICZNY SMOK — PET RPG
+            # =====================================================
+            elif icon_type == "dog":
+
+                # Skrzydło z tyłu
+                polygon((76, 73, 151), [
+                    (5, -10), (18, -32), (30, -27),
+                    (25, -13), (35, -17), (29, 1),
+                    (17, 8)
+                ])
+
+                # Błona skrzydła
+                polygon((125, 92, 203), [
+                    (9, -12), (18, -29), (24, -16),
+                    (29, -17), (23, 0), (15, 5)
+                ])
+
+                # Ogon smoka
+                polygon((81, 53, 151), [
+                    (17, 8), (30, 1), (37, -7),
+                    (35, 5), (25, 16), (15, 14)
+                ])
+
+                # Tułów
+                pygame.draw.ellipse(
+                    screen,
+                    (112, 75, 190),
+                    pygame.Rect(
+                        int(cx - 12 * s),
+                        int(cy - 5 * s),
+                        max(1, int(34 * s)),
+                        max(1, int(25 * s))
+                    )
+                )
+
+                # Brzuch
+                pygame.draw.ellipse(
+                    screen,
+                    (190, 147, 226),
+                    pygame.Rect(
+                        int(cx - 4 * s),
+                        int(cy + 3 * s),
+                        max(1, int(21 * s)),
+                        max(1, int(15 * s))
+                    )
+                )
+
+                # Łapy
+                for leg_x in (-7, 7, 17):
+                    line(
+                        (91, 57, 150),
+                        (leg_x, 11),
+                        (leg_x - 2, 22),
+                        5
+                    )
+                    circle((220, 193, 246), leg_x - 2, 22, 3)
+
+                # Szyja
+                polygon((130, 90, 207), [
+                    (-13, -8), (-7, -20), (7, -19),
+                    (12, -5), (5, 7), (-8, 5)
+                ])
+
+                # Głowa
+                pygame.draw.ellipse(
+                    screen,
+                    (145, 103, 215),
+                    pygame.Rect(
+                        int(cx - 24 * s),
+                        int(cy - 31 * s),
+                        max(1, int(34 * s)),
+                        max(1, int(28 * s))
+                    )
+                )
+
+                # Pysk
+                polygon((177, 135, 226), [
+                    (-23, -20), (-34, -16), (-32, -8),
+                    (-22, -6), (-15, -12)
+                ])
+
+                # Rogi
+                polygon((245, 219, 151), [
+                    (-18, -27), (-22, -39), (-10, -29)
+                ])
+                polygon((245, 219, 151), [
+                    (-4, -29), (2, -40), (5, -25)
+                ])
+
+                # Oko
+                circle((255, 218, 77), -17, -20, 4)
+                circle((37, 25, 45), -18, -20, 2)
+
+                # Nozdrze
+                circle((75, 43, 115), -30, -13, 2)
+
+                # Małe zęby
+                polygon((245, 239, 255), [
+                    (-28, -7), (-23, -7), (-25, -2)
+                ])
+
+                # Kolce na grzbiecie
+                polygon((238, 187, 255), [
+                    (-6, -8), (-3, -17), (1, -7)
+                ])
+                polygon((238, 187, 255), [
+                    (2, -6), (6, -15), (9, -4)
+                ])
+
+                # Magiczna obroża
+                line((255, 190, 70), (-12, -2), (-5, 3), 3)
+                circle((98, 238, 255), -9, 4, 3)
+
+        # =====================================================
+        # RYSOWANIE 7 IKON NA PRZYCISKACH
+        # =====================================================
+
+        inventory_icons = [
+            "shirt",
+            "potion",
+            "apple",
+            "sword",
+            "crossbow",
+            "pants",
+            "dog"
+        ]
+
+        all_slots = left_slots + right_slots
+
+        for slot, icon_type in zip(all_slots, inventory_icons):
+            icon_slot = slot.inflate(8, 8) if slot.collidepoint(mouse_pos) else slot
+            draw_inventory_icon(screen, icon_slot, icon_type)
+
+        # =====================================================
+        # PRZEDMIOTY W 6 PODPISANYCH SEKCJACH
+        # UI TYLKO ODCZYTUJE LISTY I WYWOŁUJE draw_icon()
+        # Slot oraz grafika przedmiotu są rysowane w odpowiednim module.
+        # =====================================================
+
+        inventory_sections = [
+            {
+                "title": "Armor:",
+                "keys": ("up_armors_in_eq", "down_armors_in_eq"),
+                "module": globals().get("armors"),
+                "column": "left",
+                "index": 0,
+                "extra_y": 50
+            },
+            {
+                "title": "Utility:",
+                "keys": ("utilies_in_eq",),
+                "module": utilities,
+                "column": "left",
+                "index": 1,
+                "extra_y": 15
+            },
+            {
+                "title": "Fruits:",
+                "keys": ("fruits_in_eq",),
+                "module": fruits,
+                "column": "left",
+                "index": 2,
+                "extra_y": 0
+            },
+            {
+                "title": "Swords:",
+                "keys": ("swords_in_eq",),
+                "module": swords,
+                "column": "right",
+                "index": 0,
+                "extra_y": 50
+            },
+            {
+                "title": "Guns:",
+                "keys": ("guns_in_eq",),
+                "module": guns,
+                "column": "right",
+                "index": 1,
+                "extra_y": 0
+            },
+            {
+                "title": "Pets:",
+                "keys": ("pets_in_eq",),
+                "module": globals().get("pets"),
+                "column": "right",
+                "index": 2,
+                "extra_y": 0
+            }
+        ]
+
+        section_font = pygame.font.Font(None, 39)
+        empty_font = pygame.font.Font(None, 60)
+        item_text_color = (255, 232, 190)
+        item_shadow_color = (35, 18, 10)
+
+        # Większe sloty i odstępy.
+        item_slot_size = 124
+        item_slot_gap = 18
+        item_row_gap = 42
+        item_stride_y = item_slot_size + item_row_gap
+
+        # Każda z 6 sekcji ma osobny przewijany obszar.
+        if not hasattr(self, "inventory_scroll_offsets"):
+            self.inventory_scroll_offsets = {}
+        self.inventory_section_viewports = {}
+        self.inventory_section_max_scroll = {}
+        
+        def get_inventory_item_name(item):
+            if isinstance(item, dict):
+                return str(item.get("name") or item.get("item") or item.get("type") or "Item")
+            if hasattr(item, "name"):
+                return str(item.name)
+            return str(item)
+
+        def find_inventory_item_object(module, item_name):
+            if module is None:
+                return None
+            wanted_name = str(item_name).strip().casefold()
+            for value in vars(module).values():
+                if not isinstance(value, type):
+                    continue
+                try:
+                    item_object = value()
+                except Exception:
+                    continue
+                class_name = value.__name__.strip().casefold()
+                object_name = str(getattr(item_object, "name", "")).strip().casefold()
+                if wanted_name in (class_name, object_name):
+                    return item_object
+            return None
+
+        for section_index, section in enumerate(inventory_sections):
+            section_items = []
+            for key in section["keys"]:
+                values = save_data.get(key, [])
+                if isinstance(values, (list, tuple)):
+                    section_items.extend(values)
+                elif values:
+                    section_items.append(values)
+
+            column_center_x = column_width / 2 if section["column"] == "left" else column_width * 2.5
+            section_top = int(section_height * section["index"])
+            section_bottom = int(section_height * (section["index"] + 1))
+
+            # Przewijany obszar wewnątrz konkretnej sekcji.
+            content_top = int(section_top + 112 + section["extra_y"])
+            viewport_bottom = int(section_bottom - 14)
+            viewport = pygame.Rect(
+                int(column_center_x - column_width / 2 + 20),
+                content_top,
+                int(column_width - 40),
+                max(1, viewport_bottom - content_top)
+            )
+
+            self.inventory_section_viewports[section_index] = viewport
+
+            if not section_items:
+                empty_y = int(section_top + section_height * 0.50 + section["extra_y"] * 0.25)
+                empty_text = empty_font.render("Empty", True, (218, 190, 151))
+                empty_rect = empty_text.get_rect(center=(int(column_center_x), empty_y))
+                empty_shadow = empty_text.copy()
+                empty_shadow.fill(item_shadow_color, special_flags=pygame.BLEND_RGB_MULT)
+                screen.blit(empty_shadow, (empty_rect.x + 2, empty_rect.y + 3))
+                screen.blit(empty_text, empty_rect)
+                self.inventory_scroll_offsets[section_index] = 0
+                continue
+
+            available_width = int(column_width - 70)
+            items_per_row = max(1, min(5, (available_width + item_slot_gap) // (item_slot_size + item_slot_gap)))
+            total_rows = (len(section_items) + items_per_row - 1) // items_per_row
+            content_height = total_rows * item_stride_y
+            # Przewijanie pojawia się, gdy zawartość nie mieści się w sekcji.
+            # Uwzględnij również miejsce na podpis ostatniego przedmiotu.
+            content_height = total_rows * item_stride_y + 34
+            max_scroll = max(0, content_height - viewport.height)
+            self.inventory_section_max_scroll[section_index] = max_scroll
+            scroll_offset = max(0, min(self.inventory_scroll_offsets.get(section_index, 0), max_scroll))
+            self.inventory_scroll_offsets[section_index] = scroll_offset
+
+            previous_clip = screen.get_clip()
+            screen.set_clip(viewport.clip(previous_clip))
+
+            for item_index, item in enumerate(section_items):
+                row_index = item_index // items_per_row
+                column_index = item_index % items_per_row
+                items_in_this_row = min(items_per_row, len(section_items) - row_index * items_per_row)
+                row_width = items_in_this_row * item_slot_size + (items_in_this_row - 1) * item_slot_gap
+                row_start_x = int(column_center_x - row_width / 2)
+                slot_x = row_start_x + column_index * (item_slot_size + item_slot_gap)
+                slot_y = content_top + row_index * item_stride_y - scroll_offset
+                slot_center_x = slot_x + item_slot_size // 2
+                slot_center_y = slot_y + item_slot_size // 2
+
+                # Pomiń rysowanie obiektów, które są poza widocznym fragmentem.
+                if slot_y + item_slot_size + 35 < viewport.top or slot_y > viewport.bottom:
+                    continue
+
+                item_name = get_inventory_item_name(item)
+                item_object = find_inventory_item_object(section["module"], item_name)
+
+                # Przedmiot nie rysuje własnej ramki slotu w ekwipunku.
+                # Rysujemy ikonę na osobnej powierzchni, odcinamy krawędzie slotu
+                # z draw_icon() (swords.py / guns.py), a następnie skalujemy samą ikonę.
+                item_hover_rect = pygame.Rect(slot_x, slot_y, item_slot_size, item_slot_size)
+                item_hovered = viewport.collidepoint(mouse_pos) and item_hover_rect.collidepoint(mouse_pos)
+
+                draw_icon_method = getattr(item_object, "draw_icon", None) if item_object else None
+                if callable(draw_icon_method):
+                    try:
+                        icon_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+                        try:
+                            draw_icon_method(icon_surface, slot_center_x, slot_center_y)
+                        except TypeError:
+                            # Niektóre klasy mają draw_icon(screen), bez współrzędnych.
+                            draw_icon_method(icon_surface)
+
+                        # Zachowaj pełną ikonę razem z jej oryginalną obramówką.
+                        # Nie dodawaj drugiej ramki podczas najechania.
+                        crop_inset = 0
+                        icon_rect = pygame.Rect(
+                            slot_center_x - item_slot_size // 2 + crop_inset,
+                            slot_center_y - item_slot_size // 2 + crop_inset,
+                            item_slot_size - crop_inset * 2,
+                            item_slot_size - crop_inset * 2
+                        )
+                        icon_rect.clamp_ip(icon_surface.get_rect())
+                        if icon_rect.width > 0 and icon_rect.height > 0:
+                            icon_crop = icon_surface.subsurface(icon_rect).copy()
+                            # Delikatne powiększenie po najechaniu; zachowuje obramówkę.
+                            # Środek pozostaje w miejscu, a powiększenie jest niewielkie.
+                            display_size = int(item_slot_size * (1.10 if item_hovered else 1.0))
+                            enlarged_icon = pygame.transform.smoothscale(
+                                icon_crop, (display_size, display_size)
+                            )
+                            if item_hovered:
+                                # Lekkie rozjaśnienie zgodne z efektem pozostałych slotów.
+                                enlarged_icon.fill((18, 18, 18, 0), special_flags=pygame.BLEND_RGBA_ADD)
+                            screen.blit(
+                                enlarged_icon,
+                                enlarged_icon.get_rect(center=(slot_center_x, slot_center_y))
+                            )
+                    except Exception as error:
+                        print(f"Nie udało się narysować ikony {item_name}: {error}")
+
+                name_surface = section_font.render(item_name, True, item_text_color)
+                max_name_width = item_slot_size + 22
+                if name_surface.get_width() > max_name_width:
+                    scale = max_name_width / name_surface.get_width()
+                    name_surface = pygame.transform.smoothscale(
+                        name_surface,
+                        (max(1, int(name_surface.get_width() * scale)), max(1, int(name_surface.get_height() * scale)))
+                    )
+                name_rect = name_surface.get_rect(midtop=(slot_center_x, slot_y + item_slot_size + 6))
+                name_shadow = name_surface.copy()
+                name_shadow.fill(item_shadow_color, special_flags=pygame.BLEND_RGB_MULT)
+                screen.blit(name_shadow, (name_rect.x + 2, name_rect.y + 2))
+                screen.blit(name_surface, name_rect)
+
+            screen.set_clip(previous_clip)
+
+            # Mały wskaźnik przewijania, gdy lista nie mieści się w sekcji.
+            if max_scroll > 0:
+                track = pygame.Rect(viewport.right - 7, viewport.top + 3, 4, max(12, viewport.height - 6))
+                pygame.draw.rect(screen, (65, 37, 22), track, border_radius=2)
+                thumb_height = max(18, int(track.height * viewport.height / max(viewport.height, content_height)))
+                thumb_y = track.y + int((track.height - thumb_height) * scroll_offset / max_scroll)
+                pygame.draw.rect(screen, (220, 174, 112), (track.x, thumb_y, track.width, thumb_height), border_radius=2)
 
     def draw_map(self, screen):
         data = save.load_game()
@@ -2975,3 +5333,63 @@ class UI:
             save.save_game(data)
 
         screen.fill((0, 0, 0))
+
+    def handle_stat_click(self, mouse_pos, data):
+        last_save = data["variables"]["last_save"]
+        save_data = data["saves"][last_save]
+
+        # Brak punktów statystyk
+        if save_data.get("stats_points_to_give", 0) <= 0:
+            return False
+
+        # Przycisk + -> nazwa statystyki
+        stat_buttons = [
+            (getattr(self, "health_plus_rect", None), "health_and_def_stats"),
+            (getattr(self, "energy_plus_rect", None), "energy_stats"),
+            (getattr(self, "damage_plus_rect", None), "dmg_and_forget_resistance_stats"),
+            (getattr(self, "combo_plus_rect", None), "combo_stats")
+        ]
+
+        # Sprawdź kliknięty przycisk
+        for button_rect, stat_name in stat_buttons:
+            if (
+                    button_rect is not None
+                    and button_rect.collidepoint(mouse_pos)
+            ):
+                current_level = save_data.get(stat_name, 0)
+
+                # Maksymalny poziom statystyki: 100
+                if current_level >= 100:
+                    return False
+
+                # Zwiększ poziom statystyki
+                save_data[stat_name] = current_level + 1
+
+                # ==========================================
+                # BONUSY STATYSTYK
+                # ==========================================
+
+                if stat_name == "health_and_def_stats":
+                    # Każdy punkt Health = +5 MAX HP
+                    save_data["max_health"] = (
+                            save_data.get("max_health", 100) + 5
+                    )
+
+                    if hasattr(self, "max_health"):
+                        self.max_health += 5
+
+                elif stat_name == "energy_stats":
+                    # Każdy punkt Energy = +5 MAX ENERGY
+                    save_data["max_energy"] = (
+                            save_data.get("max_energy", 100) + 5
+                    )
+
+                    if hasattr(self, "max_energy"):
+                        self.max_energy += 5
+
+                # Zużyj jeden punkt statystyk
+                save_data["stats_points_to_give"] -= 1
+
+                return True
+
+        return False

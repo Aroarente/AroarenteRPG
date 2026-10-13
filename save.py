@@ -59,6 +59,9 @@ DEFAULT_SAVE = {
     "elemental_lvl": 1,
     "difficulty": "",
 
+    "current_pet": "",
+    "pets_in_eq": [],
+
     "fruits_in_eq": [],
     "current_fruit": "",
 

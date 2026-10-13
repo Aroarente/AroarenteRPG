@@ -14,6 +14,7 @@ import player
 import save
 import math
 import swords
+import maps
 import guns
 import ui
 import fruits
@@ -64,7 +65,6 @@ def format_number(n):
 pygame.init()
 clock = pygame.time.Clock()
 Player = player.player()
-game_ui = ui.UI()
 
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("Aroarente RPG : Explore the world")
@@ -2426,6 +2426,80 @@ while running:
                             if len(empty_saves) > 0:
                                 save_name = empty_saves[0]
 
+                                data["saves"][save_name] = {
+                                    "money": 0,
+                                    "fragments": 0,
+
+                                    "lvl": 1,
+                                    "exp": 0,
+                                    "max_exp": 100,
+                                    "prestige_lvl": 0,
+
+                                    "health": 100,
+                                    "max_health": 100,
+                                    "energy": 100,
+                                    "max_energy": 100,
+
+                                    "stats_points_to_give": 0,
+                                    "health_and_def_stats": 0,
+                                    "dmg_and_forget_resistance_stats": 0,
+                                    "energy_stats": 0,
+                                    "combo_stats": 0,
+
+                                    "character_name": "",
+                                    "elemental": "",
+                                    "elemental_lvl": 1,
+                                    "difficulty": "",
+
+                                    "current_pet": "",
+                                    "pets_in_eq": [],
+
+                                    "fruits_in_eq": [],
+                                    "current_fruit": "",
+
+                                    "swords_in_eq": [],
+                                    "current_sword": "",
+
+                                    "guns_in_eq": [],
+                                    "current_gun": "",
+
+                                    "current_fighting_style": "",
+                                    "fighting_styles_unlocked": [],
+
+                                    "up_armors_in_eq": [],
+                                    "current_up_armor": "",
+
+                                    "down_armors_in_eq": [],
+                                    "current_down_armor": "",
+
+                                    "utilies_in_eq": [],
+                                    "current_utility": "",
+
+                                    "quests_done": 0,
+                                    "quest_doing_rn": 0,
+                                    "quest_doing_rn_name": "Watch cutscene",
+
+                                    "game_progression": 0,
+
+                                    "current_location_x": 1280,
+                                    "current_location_y": 720,
+
+                                    "current_world": "Kingdom",
+
+                                    "worlds_unlocked": [
+                                        "Kingdom"
+                                    ],
+
+                                    "current_map_on_x": 4,
+                                    "current_map_on_y": 4,
+
+                                    "cutsceene1_completed": False,
+                                    "npc1_alive": True,
+                                    "npc2_alive": True,
+                                    "npc3_alive": True,
+                                    "npc4_alive": True
+                                }
+
                                 data["saves"][save_name]["character_name"] = character_name
                                 data["saves"][save_name]["elemental"] = selected_elemental
                                 data["saves"][save_name]["difficulty"] = selected_difficulty
@@ -2439,6 +2513,8 @@ while running:
                             selected_difficulty = None
                             character_name = ""
                             character_name_entry.text = ""
+                            game_ui = ui.UI()
+                            game_ui.reset_game_ui_self()
                             game_state = "game"
                             game_game_state = "cutsceene1"
 
@@ -2551,6 +2627,7 @@ while running:
                     if event.button == 1 and not just_entered_last_save:
                         if fast_load_game_confirm_button.clicked():
                             last_save = data["variables"]["last_save"]
+                            game_ui = ui.UI()
                             if data["saves"][last_save]["cutsceene1_completed"] == False:
                                 game_state = "game"
                                 game_game_state = "cutsceene1"
@@ -2563,6 +2640,7 @@ while running:
                     if event.button == 1:
 
                         if not just_entered_load_save:
+                            game_ui = ui.UI()
                             if save_file_1_button2.clicked():
                                 data["variables"]["last_save"] = "save1"
                                 save.save_game(data)
@@ -2658,35 +2736,81 @@ while running:
                                 save_name = f"save{save_number}"
 
                                 data["saves"][save_name] = {
+                                    "money": 0,
+                                    "fragments": 0,
+
+                                    "lvl": 1,
+                                    "exp": 0,
+                                    "max_exp": 100,
+                                    "prestige_lvl": 0,
+
+                                    "health": 100,
+                                    "max_health": 100,
+                                    "energy": 100,
+                                    "max_energy": 100,
+
+                                    "stats_points_to_give": 0,
+                                    "health_and_def_stats": 0,
+                                    "dmg_and_forget_resistance_stats": 0,
+                                    "energy_stats": 0,
+                                    "combo_stats": 0,
+
                                     "character_name": "",
                                     "elemental": "",
+                                    "elemental_lvl": 1,
                                     "difficulty": "",
+
+                                    "current_pet": "",
+                                    "pets_in_eq": [],
+
                                     "fruits_in_eq": [],
                                     "current_fruit": "",
+
                                     "swords_in_eq": [],
                                     "current_sword": "",
+
                                     "guns_in_eq": [],
                                     "current_gun": "",
+
+                                    "current_fighting_style": "",
+                                    "fighting_styles_unlocked": [],
+
                                     "up_armors_in_eq": [],
                                     "current_up_armor": "",
+
                                     "down_armors_in_eq": [],
-                                    "current_down_aromor": "",
+                                    "current_down_armor": "",
+
                                     "utilies_in_eq": [],
                                     "current_utility": "",
+
                                     "quests_done": 0,
                                     "quest_doing_rn": 0,
+                                    "quest_doing_rn_name": "Watch cutscene",
+
                                     "game_progression": 0,
-                                    "current_location_X": 1280,
+
+                                    "current_location_x": 1280,
                                     "current_location_y": 720,
+
                                     "current_world": "Kingdom",
-                                    "worlds_unlocked": ["Kingdom"],
+
+                                    "worlds_unlocked": [
+                                        "Kingdom"
+                                    ],
+
                                     "current_map_on_x": 4,
-                                    "current_map_on_y": 4
+                                    "current_map_on_y": 4,
+
+                                    "cutsceene1_completed": False,
+                                    "npc1_alive": True,
+                                    "npc2_alive": True,
+                                    "npc3_alive": True,
+                                    "npc4_alive": True
                                 }
 
                                 if data["variables"]["last_save"] == save_name:
                                     data["variables"]["last_save"] = "save0"
-                                    save.save_game(data)
 
                                 save.save_game(data)
                                 data = save.load_game()
@@ -2751,6 +2875,8 @@ while running:
                                     save_file_4_button2.enabled = False
                                 else:
                                     save_file_4_button2.enabled = True
+                                game_ui = ui.UI()
+                                game_ui.reset_game_ui_self()
                                 game_menu_state = "menu"
                                 game_menu_state = "load_game"
 
@@ -3739,8 +3865,20 @@ while running:
         )
 
         for event in pygame.event.get():
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1 and game_game_state == "game":
+                    stat_upgraded = game_ui.handle_stat_click(
+                        event.pos,
+                        data
+                    )
+
+                    if stat_upgraded:
+                        save.save_game(data)
+
             if event.type == pygame.QUIT:
                 running = False
+
             if game_game_state == "game":
                 game_ui.handle_event(event)
 
@@ -3748,15 +3886,29 @@ while running:
                     if event.key == pygame.K_ESCAPE:
                         game_state = "menu"
                         game_menu_state = "menu"
+                    if event.key == pygame.K_h:
+                        data["saves"]["save1"]["swords_in_eq"] = ["Katana"]
+                        save.save_game(data)
 
             elif game_game_state == "cutsceene1":
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
 
-                if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_s:
                         game_game_state = "game"
+
+                        last_save = data["variables"]["last_save"]
+
+                        if data["saves"][last_save]["quest_doing_rn"] == 0:
+                            data["saves"][last_save]["quest_doing_rn"] += 1
+                        data["saves"][last_save]["npc1_alive"] = False
+                        data["saves"][last_save]["npc2_alive"] = False
+                        data["saves"][last_save]["npc3_alive"] = False
+                        data["saves"][last_save]["npc4_alive"] = False
+
+                        Player.stop_moving_to()
+                        save.save_game(data)
 
             elif game_game_state == "pvp":
                 if event.type == pygame.KEYDOWN:
